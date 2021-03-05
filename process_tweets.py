@@ -48,5 +48,5 @@ def save_df(df, fname):
     df.to_json(fname)
 
 if __name__ == '__main__':
-    df_tweet = process_tweets('tweets.json')
-    save_df(df_tweet, 'clean_tweets.json')
+    df_tweet = process_tweets('tweet_data/tweets.json')
+    save_df(df_tweet, 'tweet_data/processed/clean_tweets.json')
