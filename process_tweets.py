@@ -28,8 +28,6 @@ def process_tweets(fpath):
             'user_id' : tweet_dict['user_id']
         }
         
-        print(tweet_dict)
-        
         tweet_dict_list.append(clean_tweets_dict)
         
         line = tweets_file.readline()
