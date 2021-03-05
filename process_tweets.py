@@ -55,7 +55,7 @@ def process_users(fpath):
     while line:
         user_dict = json.loads(line)
         clean_user_dict = {
-            'id' : user_dict['id'],
+            'user_id' : user_dict['id'],
             'name' : user_dict['name']
         }
         
@@ -64,18 +64,38 @@ def process_users(fpath):
         line = users_file.readline()
     
     return pd.DataFrame(user_dict_list)
-
-def save_df(df, fname):
-    """ Saves the given dataframe at a given relative file path as a JSON
+    
+def join_tweets_users(df_tweet, df_user):
+    """ Joins a dataframe of tweets with a dataframe of users by matching user ids to tweets
 
     Args:
-        df (DataFrame): A Pandas DataFrame
-    
-        fname (string): A string relative file path
+        df_tweet (DataFrame): A dataframe containing tweet text with user ids
+        df_user (DataFrame): A dataframe containing user name and id
+        
+    Returns:
+        df_tweet_user (DataFrame): A dataframe containing tweet text, user id, and user name
     """
+    
+    df_tweet_user = df_tweet.merge(df_user, on='user_id', how='left')
+    
+    return df_tweet_user
 
-    df.to_json(fname)
+def json_to_df(fpath):
+    """ Parses a JSON to a dataframe
+
+    Args:
+        fpath (string): Relative filepath to a JSON representation of a dataframe
+        
+    Returns:
+        df (DataFrame): DataFrame representation of JSON data found at filepath
+    """
+    
+    path = os.path.relpath(fpath)
+    
+    return pd.read_json(fpath)
 
 if __name__ == '__main__':
-    df_tweet = process_users('tweet_data/users.json')
-    save_df(df_tweet, 'tweet_data/processed/clean_users.json')
+    df_tweet = json_to_df('tweet_data/processed/clean_tweets.json')
+    df_user = json_to_df('tweet_data/processed/clean_users.json')
+    df_tweet_user = join_tweets_users(df_tweet, df_user)
+    df_tweet_user.to_csv('tweet_data/processed/clean_tweet_users.csv')
