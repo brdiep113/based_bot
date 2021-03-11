@@ -1,13 +1,23 @@
 import torch
 import torch.nn as nn
 
+class BasedBot():
+
+    def __init__(self, vocabulary, train_loader, valid_loader, test_loader):
+        self.vocabulary = vocabulary
+        self.train_loader = train_loader
+        self.valid_loader = valid_loader
+        self.test_loader = test_loader
+        self.model = BasedLSTM(vocab_size=len(vocabulary), output_size=1, embedding_dim=400, hidden_dim=256, n_layers=2,
+                      drop_prob=0.5)
+
 
 class BasedLSTM(nn.Module):
     """
     LSTM model designed for the political party classification of text data
     """
 
-    def __init__(self, vocab_size, output_size, embedding_dim, hidden_dim, n_layers, drop_prob=0.5):
+    def __init__(self, vocab_size, output_size=1, embedding_dim=400, hidden_dim=256, n_layers=2, drop_prob=0.5):
         """
         Initialize the model by setting up the layers
         """
@@ -56,3 +66,17 @@ class BasedLSTM(nn.Module):
 
         return sig_out, hidden
 
+    def init_hidden(self, batch_size):
+        """Initialize Hidden STATE"""
+        # Create two new tensors with sizes n_layers x batch_size x hidden_dim,
+        # initialized to zero, for hidden state and cell state of LSTM
+        weight = next(self.parameters()).data
+        hidden = (weight.new(self.n_layers, batch_size, self.hidden_dim).zero_(),
+                  weight.new(self.n_layers, batch_size, self.hidden_dim).zero_())
+
+        # Maybe add .cuda()
+        # else:
+        #    hidden = (weight.new(self.n_layers, batch_size, self.hidden_dim).zero_(),
+        #              weight.new(self.n_layers, batch_size, self.hidden_dim).zero_())
+
+        return hidden
