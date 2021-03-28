@@ -1,9 +1,36 @@
 import json
+import numpy as np
 import pandas as pd
-import test.test__osx_support
+from string import punctuation
+from collections import Counter
 from bs4 import BeautifulSoup
 import os
 import requests
+import re
+
+
+def process_politician_db():
+    member_info = pd.read_csv('tweet_data/parliamentarians/full_member_info.csv', encoding='utf-16',
+                              engine='python')
+    tweets_data = pd.DataFrame()
+
+    with open('tweet_data/parliamentarians/all_tweet_ids.jsonl', encoding='utf-8') as f:
+        i = 0
+        for line in f:
+            data = json.loads(line)
+            if data['lang'] == 'en':
+                print(i)
+                reduced = {'full_text':data['full_text'], 'id':data['id']}
+                tweets_data = tweets_data.append(reduced, ignore_index=True)
+                i += 1
+
+    tweets_data.rename(columns={'id':'uid'}, inplace=True)
+    member_info_filtered = member_info[['country', 'name', 'party', 'left_right', 'uid']].copy()
+
+    df = pd.merge(member_info_filtered, tweets_data, how='left', on='uid')
+
+    return df
+
 
 def process_tweets(fpath):
     """ Processes tweets into a Pandas DataFrame
@@ -94,7 +121,7 @@ def json_to_df(fpath):
     
     path = os.path.relpath(fpath)
     
-    return pd.read_json(fpath)
+    return pd.read_json(path)
 
 def csv_to_df(fpath):
     """ Parses a JSON to a dataframe
@@ -164,8 +191,100 @@ def add_political_party(df_politician):
     
     return df_politician
 
+def process_text(df):
+    """
+
+    :rtype: object
+    """
+    features = df['text']
+    labels = df['party']
+    processed_features = []
+    for sentence in range(0, len(features)):
+        # Remove all the special characters
+        processed_feature = re.sub(r'\W', ' ', str(features[sentence]))
+
+        # remove all single characters
+        processed_feature = re.sub(r'\s+[a-zA-Z]\s+', ' ', processed_feature)
+
+        # Remove single characters from the start
+        processed_feature = re.sub(r'\^[a-zA-Z]\s+', ' ', processed_feature)
+
+        # Substituting multiple spaces with single space
+        processed_feature = re.sub(r'\s+', ' ', processed_feature, flags=re.I)
+        # Converting to Lowercase
+        processed_feature = processed_feature.lower()
+        processed_features.append(processed_feature)
+        print(processed_feature)
+    return processed_features, labels
+
+
+def pytorch_preprocess(df):
+    tweets = df['text']
+    labels = df['party']
+
+    processed_tweets = []
+    for tweet in range(len(tweets)):
+        processed_tweet = tweet.lower()
+        processed_tweet = processed_tweet.translate(str.maketrans('', '', processed_tweet.punctuation))
+        processed_tweets.append(processed_tweet)
+
+    all_text2 = ' '.join(processed_tweets)
+
+    # create a list of words
+    words = all_text2.split()  # Count all the words using Counter Method
+    count_words = Counter(words)
+
+    total_words = len(words)
+    sorted_words = count_words.most_common(total_words)
+    vocab_to_int = {w:i+1 for i, (w, c) in enumerate(sorted_words)}
+
+    tweets_int = []
+    for tweet in processed_tweets:
+        t = [vocab_to_int[w] for w in tweet.split()]
+        tweets_int.append(t)
+
+    encoded_labels = [1 if label == 'Democrat' else 0 for label in labels]
+    encoded_labels = np.array(encoded_labels)
+
+    return pad_features(tweets_int), encoded_labels, total_words
+
+
+def pad_features(tweets_int, seq_len=250):
+
+    features = np.zeros((len(tweets_int), seq_len), dtype=int)
+
+    for i, tweet in enumerate(tweets_int):
+        tweet_len = len(tweet)
+        if tweet_len <= seq_len:
+            zeroes = list(np.zeros(seq_len - tweet_len))
+            new = zeroes + tweet
+        elif tweet_len > seq_len:
+            new = tweet[:seq_len]
+
+        features[i,:] = np.array(new)
+
+    return features
+
+
+def train_val_test_split(features, labels, split_frac=0.8):
+
+    length = len(features)
+    X_train = features[:int(split_frac * length)]
+    y_train = labels[:int(split_frac * length)]
+    
+    remaining_x = features[int(split_frac * length):]
+    remaining_y = labels[int(split_frac * length):]
+    
+    X_val = remaining_x[:int(len(remaining_x) * 0.5)]
+    y_val = remaining_y[:int(len(remaining_y) * 0.5)]
+
+    X_test = remaining_x[int(len(remaining_x) * 0.5):]
+    y_test = remaining_y[int(len(remaining_y) * 0.5):]
+    
+    return X_train, y_train, X_val, y_val, X_test, y_test
+
+
+
 if __name__ == '__main__':
-    df_tweet = json_to_df('tweet_data/processed/clean_tweets.json')
-    df_user = csv_to_df('tweet_data/processed/users_with_party.csv')
-    df_tweet_user = join_tweets_users(df_tweet, df_user)
-    df_tweet_user.to_csv('tweet_data/processed/tweets_users_with_party.csv')
+    #df = process_politician_db('a')
+    pass

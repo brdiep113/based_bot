@@ -55,7 +55,7 @@ if __name__ == '__main__':
     df_tweets = csv_to_df('tweet_data/tweets_users_with_party.csv')
     processed_features, labels = process_text(df_tweets)
     corpus = CorpusIterator(processed_features)
-    vectorizer = TfidfVectorizer(max_features=2000, min_df=7, max_df=0.8, stop_words=stopwords.words('english'))
+    vectorizer = TfidfVectorizer(max_features=2500, min_df=7, max_df=0.8, stop_words=stopwords.words('english'))
     processed_features = vectorizer.fit_transform(corpus)
     processed_features = processed_features.toarray()
 
